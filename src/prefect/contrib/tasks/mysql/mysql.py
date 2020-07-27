@@ -34,7 +34,7 @@ class MySQLExecute(Task):
         query: str = None,
         commit: bool = False,
         charset: str = "utf8mb4",
-        pymysql = pymysql,
+        pymysql=pymysql,
         **kwargs: Any
     ):
         self.db_name = db_name
@@ -49,9 +49,7 @@ class MySQLExecute(Task):
         super().__init__(**kwargs)
 
     @defaults_from_attrs("query", "commit")
-    def run(self,
-            query: str = None,
-            commit: bool = False) -> int:
+    def run(self, query: str = None, commit: bool = False) -> int:
         """
         Task run method. Executes a query against MySQL database.
 
@@ -131,7 +129,7 @@ class MySQLFetch(Task):
         query: str = None,
         commit: bool = False,
         charset: str = "utf8mb4",
-        pymysql = pymysql,
+        pymysql=pymysql,
         **kwargs: Any
     ):
         self.db_name = db_name
@@ -148,11 +146,13 @@ class MySQLFetch(Task):
         super().__init__(**kwargs)
 
     @defaults_from_attrs("fetch", "fetch_count", "query", "commit")
-    def run(self,
-            fetch: str = "one",
-            fetch_count: int = 10,
-            query: str = None,
-            commit: bool = False) -> Any:
+    def run(
+        self,
+        fetch: str = "one",
+        fetch_count: int = 10,
+        query: str = None,
+        commit: bool = False,
+    ) -> Any:
         """
         Task run method. Executes a query against MySQL database and fetches results.
 
@@ -198,10 +198,9 @@ class MySQLFetch(Task):
                     results = cursor.fetchmany(fetch_count)
                 else:
                     results = cursor.fetchone()
-                    
+
                 if commit:
                     conn.commit()
-
 
         except (self.pymysql.MySQLError) as e:
             logging.debug("Query Error: ", e)
