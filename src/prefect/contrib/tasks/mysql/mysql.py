@@ -34,7 +34,7 @@ class MySQLExecute(Task):
         query: str = None,
         commit: bool = False,
         charset: str = "utf8mb4",
-        pymysql=pymysql,
+        pymysql: Any = pymysql,
         **kwargs: Any
     ):
         self.db_name = db_name
@@ -129,7 +129,7 @@ class MySQLFetch(Task):
         query: str = None,
         commit: bool = False,
         charset: str = "utf8mb4",
-        pymysql=pymysql,
+        pymysql: Any = pymysql,
         **kwargs: Any
     ):
         self.db_name = db_name
