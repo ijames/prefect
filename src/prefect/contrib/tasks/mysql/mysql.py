@@ -34,6 +34,7 @@ class MySQLExecute(Task):
         query: str = None,
         commit: bool = False,
         charset: str = "utf8mb4",
+        pymysql = pymysql,
         **kwargs: Any
     ):
         self.db_name = db_name
@@ -44,12 +45,13 @@ class MySQLExecute(Task):
         self.query = query
         self.commit = commit
         self.charset = charset
+        self.pymysql = pymysql
         super().__init__(**kwargs)
 
-    @defaults_from_attrs("query", "commit", "charset")
-    def run(
-        self, query: str = None, commit: bool = False, charset: str = "utf8mb4",
-    ) -> int:
+    @defaults_from_attrs("query", "commit")
+    def run(self,
+            query: str = None,
+            commit: bool = False) -> int:
         """
         Task run method. Executes a query against MySQL database.
 
@@ -63,11 +65,13 @@ class MySQLExecute(Task):
 
         Raises:
             - pymysql.MySQLError
+            - pymysql.DatabaseError
+            - ValueError
         """
         if not query:
             raise ValueError("A query string must be provided")
 
-        conn = pymysql.connect(
+        conn = self.pymysql.connect(
             host=self.host,
             user=self.user,
             password=self.password,
@@ -76,20 +80,21 @@ class MySQLExecute(Task):
         )
 
         try:
-            with conn:
-                with conn.cursor() as cursor:
-                    executed = cursor.execute(query)
-                    if commit:
-                        conn.commit()
+            with conn.cursor() as cursor:
+                executed = cursor.execute(query)
+                if commit:
+                    conn.commit()
 
-            conn.close()
-            logging.debug("Execute Results: ", executed)
-            return executed
-
-        except (Exception, pymysql.MySQLError) as e:
-            conn.close()
-            logging.debug("Execute Error: ", e)
+        except (self.pymysql.MySQLError) as e:
+            logging.debug("Query Error: ", e)
             raise e
+        except (Exception) as e:
+            logging.debug("Unexpected Error: ", e)
+            raise e
+        finally:
+            conn.close()
+        logging.debug("Execute Results: ", executed)
+        return executed
 
 
 class MySQLFetch(Task):
@@ -126,6 +131,7 @@ class MySQLFetch(Task):
         query: str = None,
         commit: bool = False,
         charset: str = "utf8mb4",
+        pymysql = pymysql,
         **kwargs: Any
     ):
         self.db_name = db_name
@@ -138,17 +144,15 @@ class MySQLFetch(Task):
         self.query = query
         self.commit = commit
         self.charset = charset
+        self.pymysql = pymysql
         super().__init__(**kwargs)
 
-    @defaults_from_attrs("fetch", "fetch_count", "query", "commit", "charset")
-    def run(
-        self,
-        fetch: str = "one",
-        fetch_count: int = 10,
-        query: str = None,
-        commit: bool = False,
-        charset: str = "utf8mb4",
-    ) -> Any:
+    @defaults_from_attrs("fetch", "fetch_count", "query", "commit")
+    def run(self,
+            fetch: str = "one",
+            fetch_count: int = 10,
+            query: str = None,
+            commit: bool = False) -> Any:
         """
         Task run method. Executes a query against MySQL database and fetches results.
 
@@ -159,7 +163,6 @@ class MySQLFetch(Task):
                 to fetch, defaults to 10
             - query (str, optional): query to execute against database
             - commit (bool, optional): set to True to commit transaction, defaults to false
-            - charset (str, optional): charset of the query, defaults to "utf8mb4"
 
         Returns:
             - results (tuple or list of tuples): records from provided query
@@ -175,37 +178,37 @@ class MySQLFetch(Task):
                 "The 'fetch' parameter must be one of the following - ('one', 'many', 'all')"
             )
 
-        conn = pymysql.connect(
+        conn = self.pymysql.connect(
             host=self.host,
             user=self.user,
             password=self.password,
             db=self.db_name,
             charset=self.charset,
         )
-
         try:
-            with conn:
-                with conn.cursor() as cursor:
-                    cursor.execute(query)
+            with conn.cursor() as cursor:
+                cursor.execute(query)
 
-                    # override mypy inferred type since we redefine with incompatible types
-                    results: Any
+                # override mypy inferred type since we redefine with incompatible types
+                results: Any
 
-                    if fetch == "all":
-                        results = cursor.fetchall()
-                    elif fetch == "many":
-                        results = cursor.fetchmany(fetch_count)
-                    else:
-                        results = cursor.fetchone()
+                if fetch == "all":
+                    results = cursor.fetchall()
+                elif fetch == "many":
+                    results = cursor.fetchmany(fetch_count)
+                else:
+                    results = cursor.fetchone()
+                    
+                if commit:
+                    conn.commit()
 
-                    if commit:
-                        conn.commit()
 
-            conn.close()
-            logging.debug("Fetch Results: ", results)
-            return results
-
-        except (Exception, pymysql.MySQLError) as e:
-            conn.close()
-            logging.debug("Fetch Error: ", e)
+        except (self.pymysql.MySQLError) as e:
+            logging.debug("Query Error: ", e)
             raise e
+        except (Exception) as e:
+            logging.debug("Unexpected Error: ", e)
+            raise e
+        finally:
+            conn.close()
+        return results
